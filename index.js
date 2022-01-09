@@ -16,7 +16,10 @@ function reducer(state, action) {
 
 const store = createStore(INITIAL_STATE, reducer);
 
-console.log(store.getState());
+function listener() {
+  console.log(store.getState());
+}
+
+store.subscribe(listener);
 store.dispatch({type: 'ADD', payload: 4})
 store.dispatch({type: 'SUBTRACT', payload: 7})
-console.log(store.getState());
