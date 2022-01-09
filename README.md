@@ -65,3 +65,63 @@ console.log(store.getState());
 스토어의 데이터가 어떻게 구성되어야 하는지는 사용자가 전달해주어야 알 수 있다.<br/>
 그래서 스토어를 생성할 때 사용자가 스토어의 초기값을 전달을 해준다.<br/>
 그리고 생성된 스토어를 통해 사용자는 생성하고 스토어의 값을 사용할 수 있게 된다.
+
+**2. 리덕스 형태로 변경**
+
+updater => reducer
+doUpdate => dispatch
+date => action : 주로 { type: 'blabla', payload: 'blabla' } 형태의 컨벤션을 가지고 있다.
+
+```javascript
+// redux.js
+export function createStore(INITIAL_STATE, reducer) {
+  let state;
+
+  if (!state) {
+    state = INITIAL_STATE;
+  }
+
+  function dispatch(action) {
+    // state 변경을 앱이 원하는 시점에서 실행할 수 있도록 반환하는 state 변경 함수이다.
+    state = reducer(state, action);
+  }
+
+  function getState() {
+    return state;
+  }
+
+  return {
+    dispatch,
+    getState, // state를 바로 반환할 경우 값을 직접 참조하게 되므로 getter를 반환한다.
+  }
+}
+```
+
+```javascript
+// index.js
+import { createStore } from './redux.js';
+
+const INITIAL_STATE = { count: 0 };
+
+// 앱의 상태에 따라 원하는 시점에 스토어의 상태를 바꿔줄 함수이다.
+function reducer(state, action) {
+  switch (action.type) {
+    case 'ADD':
+      return { ...state, count: state.count + action.payload};
+    case 'SUBTRACT':
+      return { ...state, count: state.count - action.payload};
+    default:
+      console.log('해당 액션은 정의되지 않았습니다.')
+  }
+}
+
+const store = createStore(INITIAL_STATE, reducer);
+
+console.log(store.getState());
+store.dispatch({type: 'ADD', payload: 4})
+store.dispatch({type: 'SUBTRACT', payload: 7})
+console.log(store.getState());
+```
+
+스토어는 리덕스가 제공하는 도구들을 모아놓은 일종의 도구 박스 같다.
+상태를 바꾸기 위해 사용자가 요청할 때 사용하기위한 dispatch 함수, store 안의 상태를 갖기위한 getState 함수를 가지고 있다.
