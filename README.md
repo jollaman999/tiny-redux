@@ -26,7 +26,13 @@ export function createStore(INITIAL_STATE) {
     state = INITIAL_STATE;
   }
 
-  return state;
+  function getState() {
+    return state;
+  }
+
+  return {
+    getState, // state를 바로 반환할 경우 값을 직접 참조하게 되므로 getter를 반환한다.
+  }
 }
 ```
 
@@ -38,8 +44,7 @@ const INITIAL_STATE = { count: 0 };
 
 const store = createStore(INITIAL_STATE);
 
-store.count = 3;
-console.log(store)
+console.log(store.getState())
 ```
 
 스토어를 생성하는 createStore 함수를 정의한다.<br/>
