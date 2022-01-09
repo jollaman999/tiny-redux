@@ -19,11 +19,16 @@
 
 ```javascript
 // redux.js
-export function createStore(INITIAL_STATE) {
+export function createStore(INITIAL_STATE, updater) {
   let state;
 
   if (!state) {
     state = INITIAL_STATE;
+  }
+
+  function doUpdater(data) {
+    // state 변경을 앱이 원하는 시점에서 실행할 수 있도록 반환하는 state 변경 함수이다.
+    state = updater(state, data);
   }
 
   function getState() {
@@ -31,8 +36,9 @@ export function createStore(INITIAL_STATE) {
   }
 
   return {
+    doUpdater,
     getState, // state를 바로 반환할 경우 값을 직접 참조하게 되므로 getter를 반환한다.
-  }
+  };
 }
 ```
 
@@ -42,9 +48,17 @@ import { createStore } from './redux.js';
 
 const INITIAL_STATE = { count: 0 };
 
-const store = createStore(INITIAL_STATE);
+// 앱의 상태에 따라 원하는 시점에 스토어의 상태를 바꿔줄 함수이다.
+function updater(state, data) {
+  return { ...state, count: state.count + data }; // 스토어의 처음 state는 primitive type이므로 return을 한 값을 다시 스토어의 state로 바꿔야한다.
+}
 
-console.log(store.getState())
+const store = createStore(INITIAL_STATE, updater);
+
+console.log(store.getState());
+store.doUpdater(4);
+store.doUpdater(7);
+console.log(store.getState());
 ```
 
 스토어를 생성하는 createStore 함수를 정의한다.<br/>
