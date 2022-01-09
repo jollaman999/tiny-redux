@@ -138,3 +138,49 @@ console.log(store.getState()); 부분을 스토어의 상태가 바뀌었을 때
 
 dispatch는 action을 전달하는데, 간단하게 actionCreator 함수를 작성해서 중복을 제거한다.
 action type도 정의해서 중복을 줄인다.
+
+**4. 액션 다루기**
+actionCreator와 action상수를 생성하여 반복적인 코드를 축약한다.
+
+```javascript
+// index.js
+import { createStore } from './redux.js';
+
+const INITIAL_STATE = { count: 0 };
+const ADD = 'ADD';
+const SUBTRACT = 'SUBTRACT';
+
+// 앱의 상태에 따라 원하는 시점에 스토어의 상태를 바꿔줄 함수이다.
+function reducer(state, action) {
+  switch (action.type) {
+    case ADD:
+      return { ...state, count: state.count + action.payload};
+    case SUBTRACT:
+      return { ...state, count: state.count - action.payload};
+    default:
+      console.log('해당 액션은 정의되지 않았습니다.')
+  }
+}
+
+const store = createStore(INITIAL_STATE, reducer);
+
+function listener() {
+  console.log(store.getState());
+}
+
+function actionCreator(type, payload) {
+  return { type, payload };
+}
+
+function add(data) {
+  store.dispatch(actionCreator(ADD, data));
+}
+
+function subtract(data) {
+  store.dispatch(actionCreator(SUBTRACT, data));
+}
+
+store.subscribe(listener);
+add(4);
+subtract(7);
+```
