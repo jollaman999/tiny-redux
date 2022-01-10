@@ -440,3 +440,139 @@ add(4);
 subtract(7);
 store.dispatch(actionCreator(GET_USERS));
 ```
+
+**7. 다중 middleware 처리 구현**
+
+이제 여러개의 미들웨어를 추가해보자.<br/>
+users를 받아오는 미들웨어 외에 post를 받아오는 미들웨어를 구현하여 createStore 함수에 전달한다.<br/>
+
+마지막 미들웨어는 스토어의 dispatch를 실행하여야 한다.<br/>
+따라서 스토어에서 받아온 미들웨어 배열을 뒤집어서 dispatch 함수를 마지막 미들웨어에게 전달한다.<br/>
+그리고 다른 미들웨어들은 다음의 미들웨어를 호출하는 함수를 dispatch 함수 대신 전달 받아서 실행하게 된다.<br/>
+
+```javascript
+// index.js
+import { createStore } from './redux.js';
+
+const INITIAL_STATE = { count: 0, users: [], post: {} };
+const ADD = 'ADD';
+const SUBTRACT = 'SUBTRACT';
+const SET_USERS = 'SET_USERS';
+const GET_USERS = 'GET_USERS';
+const SET_POST = 'SET_POST';
+const GET_POST = 'GET_POST';
+
+function actionCreator(type, payload) {
+  return { type, payload };
+}
+
+const middleware1 = state => dispatch => action => {
+  console.log('middleware1');
+  switch (action.type) {
+    case GET_USERS:
+      fetch('https://jsonplaceholder.typicode.com/users')
+        .then(response => response.json())
+        .then(users => {
+          return dispatch(actionCreator(SET_USERS, users));
+        });
+      break;
+    default:
+      dispatch(action);
+  }
+}
+
+const middleware2 = state => dispatch => action => {
+  console.log('middleware2');
+  switch (action.type) {
+    case GET_POST:
+      fetch(`https://jsonplaceholder.typicode.com/posts/${action.payload}`)
+        .then(response => response.json())
+        .then(post => {
+          return dispatch(actionCreator(SET_POST, post));
+        });
+      break;
+    default:
+      dispatch(action);
+  }
+}
+
+// 앱의 상태에 따라 원하는 시점에 스토어의 상태를 바꿔줄 함수이다.
+function reducer(state, action) {
+  switch (action.type) {
+    case ADD:
+      return { ...state, count: state.count + action.payload };
+    case SUBTRACT:
+      return { ...state, count: state.count - action.payload };
+    case SET_USERS:
+      return { ...state, users: action.payload };
+    case SET_POST:
+      return { ...state, post: action.payload };
+    default:
+      console.log('해당 액션은 정의되지 않았습니다.');
+      return state;
+  }
+}
+
+const store = createStore(INITIAL_STATE, reducer, [middleware1, middleware2]);
+
+function listener() {
+  console.log(store.getState());
+}
+
+function add(data) {
+  store.dispatch(actionCreator(ADD, data));
+}
+
+function subtract(data) {
+  store.dispatch(actionCreator(SUBTRACT, data));
+}
+
+store.subscribe(listener);
+add(4);
+subtract(7);
+
+store.dispatch(actionCreator(GET_USERS));
+store.dispatch(actionCreator(GET_POST, 1));
+store.dispatch(actionCreator(GET_POST, 2));
+```
+
+```javascript
+// redux.js
+export function createStore(INITIAL_STATE, reducer, middleware) {
+  let state;
+  const handler = [];
+
+  if (!state) {
+    state = INITIAL_STATE;
+  }
+
+  function dispatch(action) {
+    // state 변경을 앱이 원하는 시점에서 실행할 수 있도록 반환하는 state 변경 함수이다.
+    state = reducer(state, action);
+    handler.forEach(listener => {
+      listener();
+    });
+  }
+
+  function getState() {
+    return state;
+  }
+
+  function subscribe(listener) {
+    handler.push(listener);
+  }
+
+  let lastDispatch = dispatch;
+  middleware = Array.from(middleware).reverse();
+  console.log(middleware)
+  middleware.forEach(m => {
+    lastDispatch = m(state)(lastDispatch);
+  })
+
+  return {
+    dispatch: lastDispatch,
+    getState, // state를 바로 반환할 경우 값을 직접 참조하게 되므로 getter를 반환한다.
+    subscribe,
+  };
+}
+```
