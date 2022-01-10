@@ -10,7 +10,7 @@
 
 리덕스의 핵심적인 부분은 store이다.<br/>
 각각의 컴포넌트들은 전역 스토어에서 상태를 가져올 수 있는데
-수정 시에 직접 수정을 하면 직접 스토어의 상태를 수정을 하면 에러가 발생 했을 때 디버깅도 어렵고 관리가 힘들기 때문에</br>
+수정 시에 직접 수정을 하면 직접 스토어의 상태를 수정을 하면 에러가 발생 했을 때 디버깅도 어렵고 관리가 힘들기 때문에<br/>
 어떠한 트리거가 발생되길 기다렸다가 해당 트리거가 발생 했을 때 스토어의 값을 변경하는 것은 한 곳에서 관리하도록 한다.<br/>
 리덕스 입장에서는 상태를 어떻게 변경해야할 지는 알 수 없다.<br/>
 스토어의 상태에 대한 디자인은 바꾸고 싶은 컴포넌트가 함수를 전달하여 수정 시점에 리덕스가 호출해주는 형태로 구현이 되어있다.
@@ -248,7 +248,7 @@ subtract(7);
 
 **5. 비동기 액션 다루기**
 
-만약에 액션이 비동기으로 store 상태를 바꾸고자 한다면 어떻게 할까</br>
+만약에 액션이 비동기으로 store 상태를 바꾸고자 한다면 어떻게 할까<br/>
 우선은 비동기적인 액션을 만들어보자.
 
 ```javascript
@@ -302,3 +302,141 @@ store.dispatch(actionCreator(SET_USERS));
 비동기 액션인 GET_USERS를 만들었고 액션이 정상적으로 동작하였지만, 스토어의 상태는 생각했던 것처럼 업데이트 되지 않는다.
 따라서 비동기 액션을 처리하기 위해거는 다른 무언가가 필요하다는 것을 알 수 있다. (자바스크립트 특성)
 
+**6. middleware 구현**
+
+리덕스 자체만으로는 비동기 작업을 처리 할 수 없다.<br/>
+reducer에 FETCH 액션을 처리하는 코드를 넣어 주었다 하더라도 상태값을 가져오는 로직은 비동기 적으로 이루어지지 않는다.
+따라서 리듀서의 동기적인 흐름이외에 여러가지 기능을 할수 있도록 리덕스에서 바깥쪽을 노출하고 있는 아키텍쳐인 미들웨어를 활용한다.
+
+```javascript
+// index.js
+import { createStore } from './redux.js';
+
+const INITIAL_STATE = { count: 0, users: [] };
+const ADD = 'ADD';
+const SUBTRACT = 'SUBTRACT';
+const SET_USERS = 'SET_USERS';
+const GET_USERS = 'GET_USERS';
+
+function actionCreator(type, payload) {
+  return { type, payload };
+}
+
+const middleware = state => dispatch => action => {
+  switch (action.type) {
+    case GET_USERS:
+      fetch('https://jsonplaceholder.typicode.com/users')
+        .then(response => response.json())
+        .then(users => {
+          return dispatch(actionCreator(SET_USERS, users));
+        });
+      break;
+    default:
+      dispatch(action);
+      return state;
+  }
+}
+
+// 앱의 상태에 따라 원하는 시점에 스토어의 상태를 바꿔줄 함수이다.
+function reducer(state, action) {
+  switch (action.type) {
+    case ADD:
+      return { ...state, count: state.count + action.payload };
+    case SUBTRACT:
+      return { ...state, count: state.count - action.payload };
+    case SET_USERS:
+      return { ...state, users: action.payload };
+    default:
+      console.log('해당 액션은 정의되지 않았습니다.');
+      return state;
+  }
+}
+
+const store = createStore(INITIAL_STATE, reducer, middleware);
+
+function listener() {
+  console.log(store.getState());
+}
+
+function add(data) {
+  store.dispatch(actionCreator(ADD, data));
+}
+
+function subtract(data) {
+  store.dispatch(actionCreator(SUBTRACT, data));
+}
+
+store.subscribe(listener);
+add(4);
+subtract(7);
+store.dispatch(actionCreator(GET_USERS));
+```
+
+사용자가 미들웨어를 생성하여 미들웨어에서 비동기 액션을 처리한다. 미들웨어는 삼단 함수로 구현한다.<br/>
+미들웨어는 스토어의 내부에서 state와 dispatch를 인자로 받아서 실행되고 action을 인자로 받는 함수를 반환한다.<br/>
+이 반환된 함수가 스토어의 진짜 dispatch를 대신하여 컴포넌트가 사용할 dispatch 함수로 반환된다.<br/>
+그리고 컴포넌트가 dispatch 할 때 비동기 액션은 미들웨어에서 처리되고 처리되지 않은 액션들은 진짜 dispatch에 전달된다.
+
+```javascript
+// index.js
+import { createStore } from './redux.js';
+
+const INITIAL_STATE = { count: 0, users: [] };
+const ADD = 'ADD';
+const SUBTRACT = 'SUBTRACT';
+const SET_USERS = 'SET_USERS';
+const GET_USERS = 'GET_USERS';
+
+function actionCreator(type, payload) {
+  return { type, payload };
+}
+
+const middleware = state => dispatch => action => {
+  switch (action.type) {
+    case GET_USERS:
+      fetch('https://jsonplaceholder.typicode.com/users')
+        .then(response => response.json())
+        .then(users => {
+          return dispatch(actionCreator(SET_USERS, users));
+        });
+      break;
+    default:
+      dispatch(action);
+      return state;
+  }
+}
+
+// 앱의 상태에 따라 원하는 시점에 스토어의 상태를 바꿔줄 함수이다.
+function reducer(state, action) {
+  switch (action.type) {
+    case ADD:
+      return { ...state, count: state.count + action.payload };
+    case SUBTRACT:
+      return { ...state, count: state.count - action.payload };
+    case SET_USERS:
+      return { ...state, users: action.payload };
+    default:
+      console.log('해당 액션은 정의되지 않았습니다.');
+      return state;
+  }
+}
+
+const store = createStore(INITIAL_STATE, reducer, middleware);
+
+function listener() {
+  console.log(store.getState());
+}
+
+function add(data) {
+  store.dispatch(actionCreator(ADD, data));
+}
+
+function subtract(data) {
+  store.dispatch(actionCreator(SUBTRACT, data));
+}
+
+store.subscribe(listener);
+add(4);
+subtract(7);
+store.dispatch(actionCreator(GET_USERS));
+```

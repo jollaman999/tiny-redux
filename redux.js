@@ -1,4 +1,4 @@
-export function createStore(INITIAL_STATE, reducer) {
+export function createStore(INITIAL_STATE, reducer, middleware) {
   let state;
   const handler = [];
 
@@ -22,8 +22,15 @@ export function createStore(INITIAL_STATE, reducer) {
     handler.push(listener);
   }
 
+  let lastDispatch = dispatch;
+  middleware = Array.from(middleware).reverse();
+  console.log(middleware)
+  middleware.forEach(m => {
+    lastDispatch = m(state)(lastDispatch);
+  })
+
   return {
-    dispatch,
+    dispatch: lastDispatch,
     getState, // state를 바로 반환할 경우 값을 직접 참조하게 되므로 getter를 반환한다.
     subscribe,
   };
